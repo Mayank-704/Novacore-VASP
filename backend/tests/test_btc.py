@@ -165,3 +165,33 @@ def test_report_contains_profile_and_sources():
     r.update({'case_ref': 'X', 'id': '1', 'created': 'now', 'review_status': 'open', 'filters': {}, 'notes': ''})
     text = markdown_report(r)
     assert '## Address profile' in text and '## Where the money came from' in text
+
+
+def test_demo004_accounting_and_unverified_attribution():
+    seed = "bc1q2cddfc9e7a49bf96802464b83c90b79c84c3ff"
+
+    result = trace(seed, PROVIDER, LABELS)
+
+    # The seed's transaction accounting should remain correct.
+    profile = result["profile"]
+    assert profile["total_received"] == "0.80000000"
+    assert profile["total_sent"] == "0.80000000"
+    assert profile["balance"] == "0.00000000"
+
+    # Find the exchange candidate without assuming it is verified.
+    exchange = next(
+        candidate
+        for candidate in result["candidates"]
+        if candidate.get("vasp") == "Demo Exchange X"
+    )
+
+    # The label is a candidate, not a verified attribution.
+    assert exchange["label"]["verified"] is False
+
+    # This is the transaction output value, not a proven seed-origin share.
+    assert exchange["amount"] == "0.79990000"
+    assert exchange["amount_basis"] == "transaction_output_value"
+    assert exchange["share_upper_bound"] is None
+
+    assert "seed-origin share" in exchange["amount_note"]
+    assert "unknown" in exchange["amount_note"]
