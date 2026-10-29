@@ -1,0 +1,14 @@
+VASP DESK v0.3 (BITCOIN)
+
+RUN (offline demo, synthetic data)
+Windows: .\start-demo.cmd     macOS/Linux: sh start-demo.sh
+Open http://127.0.0.1:8000, pick a sample, click Trace wallet.
+
+RUN LIVE (needs internet)
+Set VASP_MODE=live before starting. Real exchange labels go in backend/data/labels.csv.
+Live mode has not been tested against the real API yet.
+
+TESTS
+.venv/bin/python -m pytest backend/tests -q     (Windows: .venv\Scripts\python.exe -m pytest backend/tests -q)
+
+Read STRUCTURE.md for the file map and what is still missing.

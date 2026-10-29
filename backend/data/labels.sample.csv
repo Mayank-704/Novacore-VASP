@@ -1,0 +1,4 @@
+address,entity,type,source,verified
+bc1q532c1d6c2d1aaae73bfbd818126c4853b0af2a,Demo Exchange X,deposit,Synthetic fixture / manually assigned,false
+bc1q8d1301b9b383c98df69c233a3ac788e3816c4b,Demo Exchange Y,deposit,Synthetic fixture / manually assigned,false
+bc1qedb2a71bcdf57200b0cc5da06435434a5f3c85,Demo Exchange X,hot-wallet,Synthetic fixture / manually assigned,false

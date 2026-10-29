@@ -1,0 +1,3 @@
+# Real exchange labels go here. Columns: address,entity,type,source,verified
+# Only add labels whose source licence allows it. Put the source name and set verified to true only for labels you checked yourself.
+address,entity,type,source,verified
