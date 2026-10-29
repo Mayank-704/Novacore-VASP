@@ -45,6 +45,25 @@ def test_valid_address_outside_fixture_is_reported_not_found(tmp_path, monkeypat
     assert r.status_code == 200 and r.json()['status'] == 'not_in_demo' and r.json()['candidates'] == []
 
 
+def test_live_mode_traces_a_mainnet_address_through_esplora(tmp_path, monkeypatch):
+    monkeypatch.setenv('VASP_DB_PATH', str(tmp_path / 'cases.sqlite3'))
+    monkeypatch.setenv('VASP_MODE', 'live')
+    monkeypatch.setenv('VASP_ESPLORA_URL', 'https://api.test')
+    from backend import main
+    importlib.reload(main)
+
+    calls = []
+    main.PROVIDER = main.EsploraProvider('https://api.test', fetch=lambda url: calls.append(url) or [], pause=0)
+    c = TestClient(main.app)
+
+    assert c.get('/api/health').json()['mode'] == 'live'
+    response = c.post('/api/trace', json={'address': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'})
+    assert response.status_code == 200
+    assert response.json()['status'] == 'no_activity'
+    assert response.json()['mode'] == 'esplora'
+    assert calls == ['https://api.test/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa/txs']
+
+
 def test_review_notes_and_directory(tmp_path, monkeypatch):
     c, _ = client(tmp_path, monkeypatch)
     seed = c.get('/api/examples').json()[0]['address']

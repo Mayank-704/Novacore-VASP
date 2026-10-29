@@ -33,7 +33,10 @@ Limit: an address is not a person. Naming the owner needs the exchange's own rec
 
 ## Modes
 - Default: `VASP_MODE=fixture`. Offline, synthetic data.
-- Live: `VASP_MODE=live` (optional `VASP_ESPLORA_URL`, `VASP_LABELS`). Needs internet. NOT tested against the real API yet.
+- Live: `VASP_MODE=live` (optional `VASP_ESPLORA_URL`, `VASP_LABELS`). Queries public Bitcoin mainnet
+  transaction history through Blockstream Esplora by default. Windows users can run `start-live.cmd`.
+  Live mode is read-only; it does not broadcast transactions. The empty-by-default `labels.csv`
+  must be populated only with independently verified, appropriately licensed labels.
 
 ## Status against the pitch deck
 | Pitch promise | Status |
@@ -44,13 +47,13 @@ Limit: an address is not a person. Naming the owner needs the exchange's own rec
 | Match public exchange labels | Code done. Real labels file is EMPTY: the team must collect them |
 | High / Medium / Low with reasons | Done, rule based |
 | Report with path, source, confidence, limits | Done |
-| Free public blockchain API | Code done, NOT yet run against the real API |
+| Free public blockchain API | Blockstream Esplora adapter is available in live mode; independent accuracy validation remains |
 | Accuracy and speed validation | NOT done |
 | NetworkX | Not used. Remove from the slide or add later |
 | PostgreSQL | Not used (SQLite). Change slide to "SQLite now, PostgreSQL later" |
 
 ## Next phases
-1. Run live mode on one real address; fix whatever breaks (rate limits, very large addresses).
+1. Validate live mode and rate/coverage behavior on public addresses.
 2. Collect real labels (check each licence) into labels.csv.
 3. Build the validation set: 5-10 public cases; record right / wrong / time.
 4. Fix the slides to match what is built.

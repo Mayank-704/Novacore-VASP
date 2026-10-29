@@ -5,8 +5,12 @@ Windows: .\start-demo.cmd     macOS/Linux: sh start-demo.sh
 Open http://127.0.0.1:8000, pick a sample, click Trace wallet.
 
 RUN LIVE (needs internet)
-Set VASP_MODE=live before starting. Real exchange labels go in backend/data/labels.csv.
-Live mode has not been tested against the real API yet.
+Windows: .\start-live.cmd
+macOS/Linux: VASP_MODE=live sh start-demo.sh
+Uses Blockstream Esplora by default. Override VASP_ESPLORA_URL to use another compatible endpoint.
+Optional real labels go in backend/data/labels.csv; add only labels whose source and accuracy you verified.
+Live lookups send searched addresses to the configured public provider. Blockchain transactions are public;
+the provider can still observe your query. Live mode is read-only and does not send transactions.
 
 TESTS
 .venv/bin/python -m pytest backend/tests -q     (Windows: .venv\Scripts\python.exe -m pytest backend/tests -q)

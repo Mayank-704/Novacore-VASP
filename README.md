@@ -5,16 +5,21 @@
 
 An editable local learning project for the user-provided SIH 2026 PS 26182.
 React + TypeScript frontend, Python FastAPI backend, SQLite case history.
-This version uses synthetic transactions and manually assigned demo labels.
+The default mode uses synthetic transactions and demo labels. An opt-in live mode queries public
+Bitcoin mainnet transaction history through Blockstream Esplora (or another compatible endpoint).
 
 ## Quick start
 
 Start with **START_HERE.txt**. The compiled React frontend is included.
-Windows: Python 3.11+ installed, then run `start-demo.cmd`. The launcher tries `py -3` and `python`.
+Windows: Python 3.11+ installed, then run `start-demo.cmd` for the offline demo or `start-live.cmd`
+for live Bitcoin mainnet lookups. The launcher tries `py -3` and `python`.
 macOS/Linux: Python 3.11+ with venv support, then run `sh start-demo.sh`.
-First setup downloads Python dependencies. Afterwards the demo requires no external API.
+For live mode on macOS/Linux, run `VASP_MODE=live sh start-demo.sh`. First setup downloads Python
+dependencies. The offline demo requires no external API.
 Open `http://127.0.0.1:8000` after the server starts. Keep the terminal open.
 The app binds to your local computer. It has no authentication and is not ready for public hosting.
+Live mode sends searched Bitcoin addresses to the configured public Esplora endpoint; use it only
+if you are comfortable disclosing those queries to that provider. It is read-only and never broadcasts transactions.
 
 
 ## Website features
@@ -25,7 +30,7 @@ The app binds to your local computer. It has no authentication and is not ready 
 - Persistent case references, investigator notes, and Open / Reviewed / Archived status.
 - Searchable case workspace and service directory; browser-local hop preferences.
 - Markdown, JSON, CSV, printable reports, and editable sample request drafts.
-- English interface, responsive layout, and clear offline data coverage notices.
+- English interface, responsive layout, and mode-aware live/offline data coverage notices.
 
 ## Upgrade safely
 
@@ -50,6 +55,21 @@ Both are excluded. Service endpoints stop a branch. Case runs save to `backend/c
 The Cases and Reports pages load the latest 200 runs. Overview totals cover all saved runs.
 Reports export Markdown, JSON, and transaction CSV. The printable report supports the
 browser Print / Save as PDF dialog. These are prototype reports, not certified legal evidence.
+
+## Live Bitcoin mode
+
+The Windows `start-live.cmd` launcher sets `VASP_MODE=live`. Other platforms can set the same
+environment variable before starting the backend. The live provider defaults to
+`https://blockstream.info/api`; set `VASP_ESPLORA_URL` to a trusted Esplora-compatible API base URL
+to use another provider. No API key is required for the public Blockstream endpoint.
+
+The live API accepts checksum-valid Bitcoin mainnet addresses through the existing `POST /api/trace`
+endpoint. It retrieves address history and follows confirmed transaction outputs with bounded
+pagination, request retries, and hop/state limits. `/api/health` reports the active mode.
+Real service labels are optional and loaded from `backend/data/labels.csv`; the file is intentionally
+empty by default. Only add labels from sources whose terms permit reuse, and independently verify
+them. Public chain data does not identify a wallet owner, and heuristics are not proof.
+Live mode is read-only: it does not broadcast transactions, contact exchanges, or freeze funds.
 
 ## VS Code development
 
@@ -115,18 +135,16 @@ Amounts are strings so display does not introduce binary floating-point rounding
 
 ## Actual scope and limits
 
-The graph proves connectivity only within this synthetic fixture. It does not establish
-exact provenance of blended balances. Equal-time transfers are excluded conservatively
-because fixture records have no intra-block execution ordering. Paths are bounded by
-hops and 250 explored states. No token events, internal transfers, bridges, mixers,
-Bitcoin UTXO logic, verified exchange clusters or risk classification are implemented.
-Every label is unvalidated. There is no live data provider, login, AI inference,
-SAHYOG connector, KYC access or freezing capability in this version.
+Fixture mode only proves connectivity within its synthetic dataset. Live mode retrieves public
+Bitcoin mainnet address history from Esplora, but does not establish exact provenance of blended
+balances or wallet ownership. Paths are bounded by hops and 250 explored states, and address
+history is capped. Mixers, CoinJoin, cross-chain bridges and swaps are not resolved. Labels in the
+live CSV are not independently validated by the application; existing demo labels must never be
+used as real exchange evidence. There is no login, AI inference, SAHYOG connector, KYC access or
+freezing capability.
 
-The next implementation step is an address-history data adapter for one selected chain,
-with pagination, timestamps, transaction ordering, failures, provenance and coverage limits.
-Only after that should verified label data be integrated and attribution measured on
-independent cases. Existing demo labels must never be reused as real exchange evidence.
+Before relying on live results, validate the provider behavior and attribution accuracy on
+independent cases. Record data coverage and verify each label's source and licence.
 
 ## Troubleshooting
 
