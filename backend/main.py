@@ -250,12 +250,26 @@ def run_trace(request: TraceRequest):
                     apply_labels(child)
 
         apply_labels(result)
+
+        # Ensure the starting wallet profile is labeled consistently too.
+        # A label marked verified=false is only a candidate, not confirmed ownership.
         seed_label = LABELS.get(address)
+        profile = result.get("profile")
         if seed_label:
+            is_verified = bool(seed_label.get("verified", False))
+            entity = seed_label.get("entity") or "Unknown entity"
             result["attribution_status"] = (
-                "verified" if bool(seed_label.get("verified", False))
-                else "unverified_candidate"
+                "verified" if is_verified else "unverified_candidate"
             )
+            if isinstance(profile, dict):
+                profile["name"] = (
+                    entity if is_verified
+                    else f"{entity} (unverified candidate)"
+                )
+                profile["label"] = {**seed_label, "verified": is_verified}
+                profile["attribution_status"] = (
+                    "verified" if is_verified else "unverified_candidate"
+                )
 
     except ProviderError as error:
 
