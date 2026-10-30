@@ -1,54 +1,108 @@
-"""Simple, explainable Bitcoin heuristics. Every one of them can be wrong; the tracer records when it relied on one."""
+"""Simple, explainable Bitcoin heuristics.
+
+Every heuristic can be wrong. Results are investigative leads, not proof
+of wallet ownership or exchange attribution.
+"""
 
 ROUND_SATS = 10_000  # 0.0001 BTC
 
 
 def detect_change(tx, input_addresses):
-    """Guess which output is change. Returns (output_index or None, 'strong' | 'weak' | None).
+    """Guess which output is change. Returns (output_index, strength)."""
+    inputs = tx.get("inputs", [])
+    outputs = tx.get("outputs", [])
+    input_addresses = set(input_addresses or ())
 
-    Rule 1: only one output has the same script type as the inputs.
-    Rule 2: only one output is a non-round amount while the others are round.
-    Both rules agreeing is 'strong'. One rule alone is 'weak'. Address reuse is handled by the tracer.
-    """
-    outs = [o for o in tx['outputs'] if o['address'] and o['address'] not in input_addresses]
-    if len(outs) < 2:
+    eligible_outputs = [
+        output for output in outputs
+        if output.get("address") and output["address"] not in input_addresses
+    ]
+    if len(eligible_outputs) < 2:
         return None, None
-    input_types = {i['type'] for i in tx['inputs'] if i['type']}
+
+    input_types = {item.get("type") for item in inputs if item.get("type")}
     by_type = None
     if len(input_types) == 1:
-        same = [o for o in outs if o['type'] in input_types]
-        if len(same) == 1:
-            by_type = same[0]['n']
-    non_round = [o for o in outs if o['value'] % ROUND_SATS != 0]
-    by_amount = non_round[0]['n'] if len(non_round) == 1 else None
+        matching = [
+            output for output in eligible_outputs
+            if output.get("type") in input_types
+        ]
+        if len(matching) == 1:
+            by_type = matching[0].get("n")
+
+    non_round = []
+    for output in eligible_outputs:
+        value = output.get("value")
+        if isinstance(value, int) and not isinstance(value, bool):
+            if value % ROUND_SATS != 0:
+                non_round.append(output)
+    by_amount = non_round[0].get("n") if len(non_round) == 1 else None
+
     if by_type is not None and by_type == by_amount:
-        return by_type, 'strong'
-    if by_type is not None and by_amount is None:
-        return by_type, 'weak'
-    if by_amount is not None and by_type is None:
-        return by_amount, 'weak'
+        return by_type, "strong"
+    if by_type is not None and by_amount is not None:
+        return None, None
+    if by_type is not None:
+        return by_type, "weak"
+    if by_amount is not None:
+        return by_amount, "weak"
     return None, None
 
 
 def analyze_address(address, txs, labels, min_senders=5):
-    """Look at one address's history for exchange evidence.
+    """Analyze possible exchange-related behavior; never prove ownership."""
+    labels = labels or {}
+    try:
+        min_senders = max(1, int(min_senders))
+    except (TypeError, ValueError):
+        min_senders = 5
 
-    cluster: another address spent together with it (same owner, common-input rule) has a label.
-    deposit_like: many different senders paid it, and every time it spends it sweeps to a single output.
-    """
     mates, funders, funding_txs, spends = set(), set(), 0, []
-    for tx in txs:
-        if not tx['confirmed']:
+
+    for tx in txs or []:
+        if not tx.get("confirmed", False):
             continue
-        in_addrs = {i['address'] for i in tx['inputs'] if i['address']}
-        if address in in_addrs:
-            mates |= in_addrs - {address}
+
+        inputs = tx.get("inputs", [])
+        outputs = tx.get("outputs", [])
+        input_addresses = {
+            item.get("address") for item in inputs if item.get("address")
+        }
+        received_here = any(
+            output.get("address") == address for output in outputs
+        )
+
+        if address in input_addresses:
+            # Common-input clustering is uncertain for collaborative transactions.
+            mates.update(input_addresses - {address})
             spends.append(tx)
-        elif any(o['address'] == address for o in tx['outputs']):
+        elif received_here:
             funding_txs += 1
-            funders |= in_addrs
-    cluster = next(((labels[m], m) for m in sorted(mates) if m in labels), None)
-    deposit_like = (funding_txs >= min_senders and len(funders) >= min_senders and bool(spends)
-                    and all(len([o for o in tx['outputs'] if o['address']]) == 1 for tx in spends))
-    return {'cluster': cluster, 'deposit_like': deposit_like,
-            'funding_txs': funding_txs, 'senders': len(funders), 'mates': len(mates)}
+            funders.update(input_addresses)
+
+    cluster = None
+    for mate in sorted(mates):
+        if mate in labels:
+            cluster = (labels[mate], mate)
+            break
+
+    deposit_like = (
+        funding_txs >= min_senders
+        and len(funders) >= min_senders
+        and bool(spends)
+        and all(
+            len([
+                output for output in tx.get("outputs", [])
+                if output.get("address")
+            ]) == 1
+            for tx in spends
+        )
+    )
+
+    return {
+        "cluster": cluster,
+        "deposit_like": deposit_like,
+        "funding_txs": funding_txs,
+        "senders": len(funders),
+        "mates": len(mates),
+    }

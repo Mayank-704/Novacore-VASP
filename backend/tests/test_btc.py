@@ -122,6 +122,50 @@ def test_esplora_provider_paginates_and_parses():
     assert len(txs) == 10 and cut
 
 
+
+def test_esplora_paginates_when_full_page_includes_unconfirmed_tx():
+    def make(i, confirmed=True):
+        return {
+            'txid': f'{i:064x}',
+            'fee': 1,
+            'status': (
+                {'confirmed': True, 'block_time': 1760000000 + i}
+                if confirmed else {'confirmed': False}
+            ),
+            'vin': [{
+                'txid': 'a' * 64,
+                'vout': 0,
+                'prevout': {
+                    'scriptpubkey_address': 'x',
+                    'value': 5,
+                    'scriptpubkey_type': 'v0_p2wpkh',
+                },
+            }],
+            'vout': [{
+                'scriptpubkey_address': 'y',
+                'value': 4,
+                'scriptpubkey_type': 'v0_p2wpkh',
+            }],
+        }
+
+    first_page = [make(i) for i in range(24)] + [make(24, confirmed=False)]
+    second_page = [make(25), make(26)]
+    first_url = 'https://api.test/address/y/txs'
+    next_url = f'https://api.test/address/y/txs/chain/{23:064x}'
+    pages = {first_url: first_page, next_url: second_page}
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return pages[url]
+
+    provider = EsploraProvider('https://api.test', fetch=fetch, pause=0)
+    txs, truncated = provider.address_txs('y', 100)
+
+    assert len(txs) == 27
+    assert calls == [first_url, next_url]
+    assert not truncated
+
 def test_unconfirmed_has_no_time():
     tx = normalize_tx({'txid': 'a' * 64, 'vin': [], 'vout': [], 'status': {'confirmed': False}})
     assert tx['time'] is None and not tx['confirmed']
@@ -165,3 +209,33 @@ def test_report_contains_profile_and_sources():
     r.update({'case_ref': 'X', 'id': '1', 'created': 'now', 'review_status': 'open', 'filters': {}, 'notes': ''})
     text = markdown_report(r)
     assert '## Address profile' in text and '## Where the money came from' in text
+
+
+def test_demo004_accounting_and_unverified_attribution():
+    seed = "bc1q2cddfc9e7a49bf96802464b83c90b79c84c3ff"
+
+    result = trace(seed, PROVIDER, LABELS)
+
+    # The seed's transaction accounting should remain correct.
+    profile = result["profile"]
+    assert profile["total_received"] == "0.80000000"
+    assert profile["total_sent"] == "0.80000000"
+    assert profile["balance"] == "0.00000000"
+
+    # Find the exchange candidate without assuming it is verified.
+    exchange = next(
+        candidate
+        for candidate in result["candidates"]
+        if candidate.get("vasp") == "Demo Exchange X"
+    )
+
+    # The label is a candidate, not a verified attribution.
+    assert exchange["label"]["verified"] is False
+
+    # This is the transaction output value, not a proven seed-origin share.
+    assert exchange["amount"] == "0.79990000"
+    assert exchange["amount_basis"] == "transaction_output_value"
+    assert exchange["share_upper_bound"] is None
+
+    assert "seed-origin share" in exchange["amount_note"]
+    assert "unknown" in exchange["amount_note"]

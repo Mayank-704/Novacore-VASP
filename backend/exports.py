@@ -12,10 +12,23 @@ def markdown_report(r):
     if not r['candidates']:
         lines.append('No exchange endpoint was found in the explored data. This does not prove absence of an exchange.')
     for c in r['candidates']:
+        share = c.get('share_upper_bound')
+        if share is None:
+            share_text = 'Attributable share: unknown; no percentage established'
+        else:
+            share_text = f"At most {share * 100:.1f}% of funds received by the seed"
+        amount = c.get('amount')
+        if amount is None:
+            received = c.get('address_total_received')
+            amount_text = ('unknown as attributable; address total received was ' + str(received) + ' BTC'
+                           if received is not None else 'unknown as attributable')
+        else:
+            amount_text = str(amount) + ' BTC'
         lines += [f"- {c['vasp']}: {c['hops']} hops, address {c['address']}",
                   f"  Source: {c['label']['source']}", f"  Match type: {c['match']}",
                   f"  Confidence: {c['confidence']} (score {c['confidence_score']})",
-                  f"  Amount reaching it: {c['amount']} BTC (at most {c['share_upper_bound'] * 100:.1f}% of funds received by the seed)",
+                  f"  Amount reaching it: {amount_text}",
+                  f"  Attribution: {share_text}",
                   *['  Why: ' + reason for reason in c['reasons']],
                   '  Path: ' + (', '.join(t['id'] for t in c['transactions']) or 'Labeled seed')]
     p = r.get('profile')
